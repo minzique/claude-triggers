@@ -1,0 +1,58 @@
+{
+  "name": "claude-triggers",
+  "version": "0.1.0",
+  "description": "Manage Claude Code scheduled agents from any harness — create, list, update, and run remote triggers using your Claude Code credentials",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "claude-triggers": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "SKILL.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "test": "node --test --import tsx 'src/**/*.test.ts'",
+    "test:e2e": "tsx src/e2e.ts",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "anthropic",
+    "triggers",
+    "schedule",
+    "cron",
+    "agents",
+    "ccr",
+    "remote-agents",
+    "pi",
+    "opencode"
+  ],
+  "author": "minzique <hello@minzique.net>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/minzique/claude-triggers.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
