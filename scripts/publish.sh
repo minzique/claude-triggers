@@ -3,13 +3,18 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 VERSION=$(node -e "console.log(require('./package.json').version)")
-echo "Publishing claude-triggers v${VERSION}"
+echo "Tagging v${VERSION} — GitHub Actions will publish to npm via trusted publishing"
 
 pnpm build
-npm publish --access public
-
+git add -A
+git diff --cached --quiet || git commit -m "chore: release v${VERSION}"
 git tag "v${VERSION}"
 git push origin main --tags
 
 echo ""
-echo "Published: https://www.npmjs.com/package/claude-triggers"
+echo "Tag pushed. GitHub Actions will:"
+echo "  1. Build"
+echo "  2. Publish to npm via OIDC (no token needed)"
+echo "  3. Create GitHub release"
+echo ""
+echo "Watch: https://github.com/minzique/claude-triggers/actions"
