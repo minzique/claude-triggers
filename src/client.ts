@@ -371,6 +371,10 @@ export class ClaudeTriggersClient {
    * Create a remote CCR session directly.
    * This is what triggers spawn under the hood — exposed here
    * for direct session creation without a trigger/cron schedule.
+   *
+   * Note: Claude Code creates sessions with events:[] (empty),
+   * then sends the initial prompt via sendSessionEvent() after
+   * the session is provisioned. This method follows the same pattern.
    */
   async createSession(opts: {
     title?: string;
@@ -384,29 +388,19 @@ export class ClaudeTriggersClient {
   }): Promise<{ id: string; title: string }> {
     await this.ensureOrgUUID();
 
-    const sources: SessionContext["sources"] = [];
+    const sources: Array<Record<string, unknown>> = [];
     if (opts.repoUrl) {
       sources.push({
-        git_repository: {
-          url: opts.repoUrl,
-          ...(opts.revision ? { revision: opts.revision } : {}),
-        } as { url: string },
+        type: "git_repository",
+        url: opts.repoUrl,
+        ...(opts.revision ? { revision: opts.revision } : {}),
       });
     }
 
+    // Session create always sends events:[] — prompt goes via sendSessionEvent
     const body: Record<string, unknown> = {
       title: opts.title ?? "Remote session",
-      events: opts.prompt
-        ? [
-            {
-              uuid: crypto.randomUUID(),
-              session_id: "",
-              type: "user",
-              parent_tool_use_id: null,
-              message: { content: opts.prompt, role: "user" },
-            },
-          ]
-        : [],
+      events: [],
       session_context: {
         sources,
         ...(opts.seedBundleFileId
@@ -428,10 +422,52 @@ export class ClaudeTriggersClient {
       body
     );
 
-    return {
-      id: resp.data.id,
-      title: resp.data.title ?? opts.title ?? "Remote session",
-    };
+    const sessionId = resp.data.id;
+    const title = resp.data.title ?? opts.title ?? "Remote session";
+
+    // Send initial prompt if provided
+    if (opts.prompt) {
+      await this.sendSessionEvent(sessionId, opts.prompt);
+    }
+
+    return { id: sessionId, title };
+  }
+
+  /**
+   * Fetch events from a session. Supports pagination via afterId.
+   * Returns the conversation history: user messages, assistant responses, tool calls.
+   */
+  async getSessionEvents(
+    sessionId: string,
+    afterId?: string
+  ): Promise<Array<Record<string, unknown>>> {
+    await this.ensureOrgUUID();
+
+    const allEvents: Array<Record<string, unknown>> = [];
+    let cursor = afterId;
+    const MAX_PAGES = 50;
+
+    for (let i = 0; i < MAX_PAGES; i++) {
+      const url = cursor
+        ? `/v1/sessions/${sessionId}/events?after_id=${cursor}`
+        : `/v1/sessions/${sessionId}/events`;
+
+      const resp = await this.request<{
+        data: Array<Record<string, unknown>>;
+        has_more: boolean;
+        last_event_id?: string;
+      }>("GET", url, CCR_BETA);
+
+      const events = resp.data.data ?? [];
+      if (events.length === 0) break;
+
+      allEvents.push(...events);
+
+      if (!resp.data.has_more) break;
+      cursor = resp.data.last_event_id ?? (events[events.length - 1].id as string);
+    }
+
+    return allEvents;
   }
 
   /**
