@@ -158,3 +158,18 @@ Cron expressions are always in **UTC**. Convert local times before creating trig
 - The agent prompt must be self-contained (the remote agent starts with zero context)
 - Cannot delete triggers via API — use https://claude.ai/code/scheduled
 - The trigger feature requires the `tengu_surreal_dali` feature flag (rolling out)
+- Sessions are created with `events: []`, then the prompt is sent via `sendSessionEvent()` — this is how Claude Code does it internally
+- When a GitHub repo is attached, the backend auto-provisions a scoped GitHub MCP server
+- Cron is always **UTC** — convert local times before creating triggers
+
+## Session Lifecycle
+
+1. **Create** → status `pending` (environment provisioning)
+2. **Running** → agent is executing (tool calls, thinking)
+3. **Idle** → agent finished, waiting for follow-up input
+4. Use `getSessionEvents()` to read the conversation history
+5. Use `sendSessionEvent()` to send follow-up prompts to idle sessions
+
+## Disclaimer
+
+This tool uses **reverse-engineered, undocumented Anthropic APIs** with beta headers that may change or break at any time. It uses your Claude Code OAuth credentials — Anthropic's ToS state that subscription tokens should only be used with official clients. **Use at your own risk.** The authors are not liable for account suspension, charges, or any other consequences. See the full [README disclaimer](https://github.com/minzique/claude-triggers#disclaimer) for details.
